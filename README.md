@@ -155,7 +155,7 @@ Click a card to enter its full dashboard. Click **← All Plans** to return. Cre
 
 ## Synology NAS Sync
 
-For multi-device use. Same pattern as [Project Eidos](https://github.com/twishav/project-eidos).
+For multi-device use. Same pattern as [Project Eidos](https://github.com/t-veera/project-eidos).
 
 ### Requirements
 
