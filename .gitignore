@@ -1,0 +1,13 @@
+# Data files created by api.php
+recovery-radar-data.json
+recovery-radar-data.json.tmp
+eidos-data.json
+eidos-data.json.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

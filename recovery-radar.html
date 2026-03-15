@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recovery Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--renoir-1:#C08B82;--renoir-2:#7A9E82;--renoir-3:#B8956A;--renoir-4:#8B9AAF;--renoir-5:#A08BAF;--renoir-9:#B08A9A}
+  [data-theme="dark"]{--bg:#181512;--surface:#221E1A;--surface-2:#2C2722;--surface-3:#342E28;--border:#3A342E;--text-primary:#EDE5DC;--text-secondary:#9A9088;--text-muted:#6A6058;--bar-track:#2C2722;--shadow:rgba(0,0,0,0.4);--grain-opacity:0.04;--radar-grid:rgba(58,52,46,0.5);--c-endurance:#7A9E82;--c-strength:#D4736A;--c-stability:#8B9AAF;--c-mobility:#C9A84C;--c-fascia:#A08BAF;--c-pain:#B08A9A}
+  [data-theme="light"]{--bg:#F7F2EC;--surface:#EDE6DC;--surface-2:#E4DDD2;--surface-3:#D8D0C5;--border:#CFC8BE;--text-primary:#2A2520;--text-secondary:#6A6058;--text-muted:#9A9088;--bar-track:#D8D0C5;--shadow:rgba(0,0,0,0.12);--grain-opacity:0.03;--radar-grid:rgba(207,200,190,0.6);--c-endurance:#3D6E48;--c-strength:#B5433A;--c-stability:#3D5270;--c-mobility:#8A7020;--c-fascia:#60406E;--c-pain:#70405A}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:clamp(18px,1.35vw,48px)}
+  body{font-family:'Jost',sans-serif;font-weight:300;background:var(--bg);color:var(--text-primary);min-height:100vh;padding:2rem;overflow-x:hidden;transition:background-color .4s,color .4s}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");opacity:var(--grain-opacity);pointer-events:none;z-index:100}
+
+  /* ─── LIBRARY ────────────────────────────────── */
+  .lib-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2rem;padding-bottom:1.2rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.8rem}
+  .lib-head h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2.4rem;letter-spacing:-.02em;line-height:1}
+  .lib-head .sub{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-top:.35rem}
+  .lib-acts{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;cursor:pointer;transition:all .2s;position:relative}
+  .card:hover{border-color:var(--text-secondary);background:var(--surface-2)}
+  .card-title{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500;margin-bottom:.15rem}
+  .card-meta{font-size:.7rem;color:var(--text-muted);margin-bottom:.8rem;display:flex;gap:.8rem}
+  .card-meta span{display:flex;align-items:center;gap:.25rem}
+  .card-radar{width:100%;max-width:200px;margin:0 auto;aspect-ratio:1}
+  .card-radar svg{width:100%;height:100%}
+  .card-legend{display:flex;flex-wrap:wrap;gap:.3rem .6rem;margin-top:.6rem;justify-content:center}
+  .card-legend span{font-size:.6rem;color:var(--text-muted);display:flex;align-items:center;gap:.25rem}
+  .card-legend .cld{width:5px;height:5px;border-radius:50%}
+  .card-actions{position:absolute;top:.8rem;right:.8rem;display:flex;gap:.4rem;opacity:0;transition:opacity .15s}
+  .card:hover .card-actions{opacity:1}
+  .card-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.7rem;font-family:'Jost',sans-serif;padding:.15rem .3rem;transition:color .15s}
+  .card-btn:hover{color:var(--text-primary)}
+  .card-btn.del:hover{color:var(--c-strength)}
+  .new-card{background:transparent;border:1px dashed var(--border);border-radius:12px;padding:2.5rem 1.2rem;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;min-height:200px}
+  .new-card:hover{border-color:var(--text-secondary);background:var(--surface)}
+  .new-card span{font-size:1.8rem;color:var(--text-muted);line-height:1}
+  .new-card p{font-size:.78rem;color:var(--text-muted)}
+  .empty-lib{text-align:center;padding:4rem 2rem;color:var(--text-muted)}
+  .empty-lib p{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:300;margin-bottom:.4rem}
+  .empty-lib small{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+
+  /* ─── SETUP ──────────────────────────────────── */
+  #setup{max-width:740px;margin:0 auto;padding:2rem 0;display:none}
+  #setup h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2rem;letter-spacing:-.02em;margin-bottom:.3rem}
+  #setup .sub{font-size:.72rem;color:var(--text-muted);margin-bottom:1.5rem}
+  .s-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.8rem}
+  .fg{margin-bottom:.6rem}
+  .fg label{display:block;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.3rem}
+  .fg input{width:100%;padding:.55rem .75rem;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:'Jost',sans-serif;font-size:.85rem;font-weight:300;outline:none;transition:border-color .2s}
+  .fg input:focus{border-color:var(--text-secondary)}.fg input::placeholder{color:var(--text-muted)}
+  .s-section{margin-bottom:1.5rem}
+  .s-section h2{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;color:var(--text-secondary);margin-bottom:.6rem}
+  .we{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:.6rem}
+  .we-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem}
+  .we-hd h3{font-family:'Cormorant Garamond',serif;font-size:.95rem;font-weight:500}
+  .we-hd button{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.7rem;font-family:'Jost',sans-serif}
+  .we-hd button:hover{color:var(--c-strength)}
+  .ph{display:grid;grid-template-columns:80px 1fr 1fr 60px 60px;gap:.4rem;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding-bottom:.3rem;border-bottom:1px solid var(--border);margin-bottom:.3rem}
+  .pr{display:grid;grid-template-columns:80px 1fr 1fr 60px 60px;gap:.4rem;align-items:center;padding:.3rem 0;border-bottom:1px solid var(--border)}
+  .pr:last-child{border-bottom:none}
+  .pr .pn{font-size:.75rem;font-weight:400;color:var(--text-secondary);display:flex;align-items:center;gap:.3rem}
+  .pr .pn .cd{width:6px;height:6px;border-radius:50%}
+  .pr input{padding:.35rem .5rem;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-family:'Jost',sans-serif;font-size:.72rem;font-weight:300;outline:none;width:100%}
+  .pr input:focus{border-color:var(--text-secondary)}.pr input::placeholder{color:var(--text-muted)}
+  .btn-aw{display:flex;align-items:center;gap:.4rem;padding:.5rem;background:transparent;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-family:'Jost',sans-serif;font-size:.75rem;cursor:pointer;transition:all .2s;width:100%;justify-content:center}
+  .btn-aw:hover{border-color:var(--text-secondary);color:var(--text-primary)}
+  .s-acts{display:flex;gap:.8rem;justify-content:flex-end;margin-top:1.5rem}
+  .btn-s{padding:.6rem 1.6rem;border-radius:6px;font-family:'Jost',sans-serif;font-size:.82rem;cursor:pointer;transition:all .2s;border:1px solid var(--border)}
+  .btn-s.pri{background:var(--surface-2);color:var(--text-primary)}.btn-s.pri:hover{border-color:var(--text-secondary);background:var(--border)}
+  .btn-s.sec{background:transparent;color:var(--text-muted)}.btn-s.sec:hover{color:var(--text-primary)}
+
+  /* ─── DASHBOARD ──────────────────────────────── */
+  #dash{display:none}
+  header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2rem;padding-bottom:1.2rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.8rem}
+  .header-left h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2.4rem;letter-spacing:-.02em;line-height:1}
+  .header-left .sub{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-top:.35rem}
+  .back-btn{background:none;border:1px solid var(--border);color:var(--text-muted);padding:.35rem .7rem;border-radius:4px;cursor:pointer;font-size:.75rem;font-family:'Jost',sans-serif;transition:all .15s;margin-bottom:.3rem;display:inline-block}
+  .back-btn:hover{color:var(--text-primary);border-color:var(--text-secondary)}
+  .wnav{display:flex;align-items:center;gap:.6rem;margin-top:.4rem}
+  .wnav strong{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:500}
+  .wnav .wd{font-size:.78rem;color:var(--text-secondary)}
+  .wa{background:none;border:1px solid var(--border);color:var(--text-muted);width:26px;height:26px;border-radius:4px;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .wa:hover{color:var(--text-primary);border-color:var(--text-secondary)}.wa:disabled{opacity:.3;cursor:default}
+  .hact{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+  .btn-sm{padding:.45rem .9rem;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-family:'Jost',sans-serif;font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;cursor:pointer;transition:all .2s;white-space:nowrap}
+  .btn-sm:hover{border-color:var(--text-secondary);color:var(--text-primary);background:var(--surface)}
+  .thm{width:46px;height:24px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;cursor:pointer;position:relative;transition:background .3s}
+  .thm::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text-secondary);transition:transform .3s,background .3s}
+  [data-theme="light"] .thm::after{transform:translateX(22px);background:var(--c-mobility)}
+  .ql{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1.8rem;display:flex;gap:.8rem;align-items:center}
+  .ql-in{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:.7rem 1rem;color:var(--text-primary);font-family:'Jost',sans-serif;font-size:.88rem;font-weight:300;outline:none;transition:border-color .2s}
+  .ql-in:focus{border-color:var(--text-secondary)}.ql-in::placeholder{color:var(--text-muted)}
+  .ql-btn{padding:.7rem 1.4rem;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:'Jost',sans-serif;font-size:.78rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+  .ql-btn:hover{border-color:var(--text-secondary);background:var(--border)}
+  .info-wrap{position:relative;flex-shrink:0}
+  .info-icon{width:24px;height:24px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--text-muted);cursor:help;transition:all .2s;font-weight:400}
+  .info-icon:hover{border-color:var(--text-secondary);color:var(--text-primary)}
+  .info-tip{position:absolute;right:0;top:calc(100% + 8px);width:320px;padding:.9rem 1rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:.75rem;color:var(--text-secondary);line-height:1.5;box-shadow:0 8px 24px var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+  .info-wrap:hover .info-tip{opacity:1;pointer-events:all}
+  .pf{margin:.5rem 0 1.5rem;padding:.6rem 1rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text-secondary);display:none}
+  .pf.show{display:block}.pf.err{border-color:var(--c-strength);color:var(--c-strength)}.pf.ok{border-color:var(--c-endurance)}
+  .ptag{display:inline-block;padding:.12rem .45rem;border-radius:4px;font-size:.68rem;margin-right:.3rem;font-weight:400}
+  .mg{display:flex;flex-direction:column;gap:2rem}
+  .radar-row{display:grid;grid-template-columns:1fr 280px;gap:2rem;align-items:start}
+  @media(max-width:950px){.radar-row{grid-template-columns:1fr;gap:1.5rem}}
+  .rc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
+  .rc-t{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:400;color:var(--text-secondary);margin-bottom:1rem;text-align:center}
+  .rc-c{width:100%;max-width:520px;margin:0 auto;aspect-ratio:1}.rc-c svg{width:100%;height:100%}
+  .rl{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem .8rem;margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--border)}
+  .rl-i{display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--text-secondary)}
+  .rl-d{width:6px;height:6px;border-radius:50%;flex-shrink:0}.rl-v{margin-left:auto;font-weight:400;color:var(--text-primary)}
+  .ov{padding:1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;align-self:start}
+  .ov-t{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem}
+  .ov-row{display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-size:.72rem}
+  .ov-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}.ov-name{color:var(--text-secondary);min-width:68px}
+  .ov-bar{flex:1;height:6px;background:var(--bar-track);border-radius:3px;overflow:hidden}
+  .ov-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.23,1,.32,1)}
+  .ov-pct{font-size:.75rem;color:var(--text-muted);min-width:30px;text-align:right}.ov-wk{font-size:.7rem;color:var(--text-muted)}
+  .lanes{display:flex;flex-direction:column}
+  .pl{padding:1rem .5rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;border-radius:4px;margin:0 -.5rem}
+  .pl:hover{background:var(--surface)}
+  .pl-top{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;margin-bottom:.3rem}
+  .pl-n{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:500;display:flex;align-items:center;gap:.45rem;flex-shrink:0}
+  .pl-n .cd{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .pl-ex{font-size:.7rem;color:var(--text-muted);margin-bottom:.35rem;line-height:1.3}
+  .atag{font-size:.68rem;color:var(--c-mobility);letter-spacing:.08em;text-transform:uppercase;margin-left:.3rem}
+  .train-label{font-size:.7rem;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.3rem}
+  .train-bar{display:flex;gap:3px;height:1.6rem;margin-bottom:.6rem}
+  .day-seg{flex:1;background:var(--bar-track);border-radius:3px;position:relative;overflow:hidden}
+  .day-seg.today{outline:1.5px solid var(--text-muted);outline-offset:1px}
+  .day-fill{position:absolute;bottom:0;left:0;width:100%;border-radius:3px;transition:height .5s cubic-bezier(.23,1,.32,1)}
+  .day-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.7rem;color:var(--text-muted);pointer-events:none;z-index:1;font-weight:400}
+  .day-seg.trained .day-lbl{color:rgba(255,255,255,.8)}
+  .gate-row{display:flex;align-items:center;gap:.7rem;padding:.5rem .6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px}
+  .gate-icon{font-size:1rem;flex-shrink:0;width:1.2rem;text-align:center}
+  .gate-info{flex:1;min-width:0}
+  .gate-desc{font-size:.72rem;color:var(--text-secondary);line-height:1.3;margin-bottom:.2rem}
+  .gate-desc strong{font-weight:500;color:var(--text-primary)}
+  .gate-progress{display:flex;align-items:center;gap:.5rem}
+  .gate-mini-bar{flex:1;height:5px;background:var(--bar-track);border-radius:3px;overflow:hidden}
+  .gate-mini-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.23,1,.32,1)}
+  .gate-pct{font-size:.75rem;font-weight:400;min-width:32px;text-align:right}
+  .gate-best{font-size:.72rem;color:var(--text-muted);margin-top:.15rem}
+  .gpp{color:var(--c-endurance)}.gpi{color:var(--text-secondary)}.gpb{color:var(--c-strength)}
+  .pl-h{margin-top:.5rem;max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .pl:hover .pl-h,.pl-h.open{max-height:500px}
+  .hr{display:flex;align-items:baseline;gap:.5rem;padding:.15rem 0;font-size:.68rem}
+  .hr .ht{color:var(--text-muted);min-width:60px}.hr .hd{color:var(--text-secondary);flex:1}.hr .hv{font-weight:400}.hr .hp{color:var(--text-muted);font-size:.7rem}
+  .hr.best-row .hv{color:var(--c-endurance)}
+  .ts{margin-top:2rem;padding-top:1.2rem;border-top:1px solid var(--border)}
+  .ts-t{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:400;color:var(--text-muted);margin-bottom:.8rem}
+  .tl{display:flex;gap:0;overflow-x:auto;padding-bottom:.5rem}
+  .tw{flex:1;min-width:55px;display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.35rem .1rem;border-radius:6px;cursor:pointer;transition:background .12s;position:relative}
+  .tw:hover{background:var(--surface)}.tw.cur{background:var(--surface-2)}
+  .tw-n{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:var(--text-muted);background:var(--bg);transition:all .2s}
+  .tw.cur .tw-n{border-color:var(--text-secondary);color:var(--text-primary)}
+  .tw.done .tw-n{border-color:var(--c-endurance);color:var(--c-endurance)}
+  .tw.part .tw-n{border-color:var(--c-mobility);color:var(--c-mobility)}
+  .tw-ds{display:flex;gap:2px}.tw-ds .d{width:3px;height:3px;border-radius:50%;background:var(--border)}
+  .tw-l{font-size:.75rem;color:var(--text-muted)}
+  .tw::before{content:'';position:absolute;top:calc(.35rem + 12px);left:-50%;right:50%;height:1px;background:var(--border)}
+  .tw:first-child::before{display:none}.tw.done::before,.tw.cur::before{background:var(--c-endurance)}
+  .ls{margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)}
+  .ls-t{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:400;color:var(--text-muted);margin-bottom:.5rem}
+  .le{display:flex;align-items:center;gap:.6rem;padding:.4rem .6rem;background:var(--surface);border-radius:6px;font-size:.73rem;margin-bottom:.2rem}
+  .le .lt{color:var(--text-muted);font-size:.7rem;min-width:40px}.le .lp{font-weight:400;min-width:68px}.le .ld{color:var(--text-secondary);flex:1}
+  .le .lv{font-weight:400}.le .lpn{font-size:.72rem;color:var(--text-muted)}
+  .le .lx{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.7rem;padding:0 .15rem;opacity:0;transition:opacity .15s}
+  .le:hover .lx{opacity:1}.lx:hover{color:var(--c-strength)!important}
+  .nl{font-size:.75rem;color:var(--text-muted);padding:.3rem 0}
+  .sync-g{display:flex;align-items:center;gap:.4rem}
+  .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .4s}
+  .sync-dot.online{background:var(--c-endurance)}.sync-dot.busy{background:var(--c-mobility);animation:dblink .65s infinite}.sync-dot.err{background:var(--c-strength)}
+  @keyframes dblink{0%,100%{opacity:1}50%{opacity:.2}}
+  .sync-lbl{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap;min-width:2.5rem}
+  ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  @media(max-width:600px){body{padding:1rem}.ql{flex-wrap:wrap}.pl-top{flex-direction:column;gap:.15rem}header{flex-direction:column;align-items:flex-start}.s-row{grid-template-columns:1fr}.ph,.pr{grid-template-columns:1fr;gap:.2rem}.ph{display:none}.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ═══ LIBRARY ═══ -->
+<div id="lib">
+  <div class="lib-head">
+    <div><h1>Recovery Radar</h1><p class="sub">All recoveries at a glance</p></div>
+    <div class="lib-acts">
+      <label class="btn-sm" style="cursor:pointer">↓ Import<input type="file" accept=".json" style="display:none" onchange="impPlan(event)"></label>
+      <button class="thm" onclick="togTheme()"></button>
+    </div>
+  </div>
+  <div class="cards" id="cards"></div>
+</div>
+
+<!-- ═══ SETUP ═══ -->
+<div id="setup">
+  <h1 id="setup-title">New Recovery Plan</h1>
+  <p class="sub">Configure your recovery. You can edit this anytime from the dashboard.</p>
+  <div class="s-section">
+    <div class="s-row"><div class="fg"><label>Recovery Title</label><input id="s-title" placeholder="e.g. Ankle Rehab"></div><div class="fg"><label>Start Date</label><input type="date" id="s-start"></div></div>
+    <div class="s-row"><div class="fg"><label>NAS URL (optional)</label><input id="s-nas" placeholder="http://192.168.1.x/recovery-radar/api.php"></div><div></div></div>
+  </div>
+  <div class="s-section">
+    <h2>Weekly Plan</h2>
+    <p style="font-size:.72rem;color:var(--text-muted);margin-bottom:.8rem">Per-pillar exercise and gate target for each week. Gate = can you do this in a single session?</p>
+    <div id="weeks"></div>
+    <button class="btn-aw" onclick="addWeek()">+ Add Week</button>
+  </div>
+  <div class="s-acts">
+    <button class="btn-s sec" onclick="showLib()">Cancel</button>
+    <button class="btn-s pri" onclick="savePlan()">Save Plan</button>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="dash">
+<header>
+  <div class="header-left">
+    <button class="back-btn" onclick="showLib()">← All Plans</button>
+    <h1 id="d-title">Recovery</h1>
+    <p class="sub" id="d-sub"></p>
+    <div class="wnav">
+      <button class="wa" onclick="navW(-1)" id="wp">‹</button>
+      <strong id="wdd">Week 1</strong>
+      <button class="wa" onclick="navW(1)" id="wn">›</button>
+      <span class="wd" id="wdt"></span>
+    </div>
+  </div>
+  <div class="hact">
+    <div class="sync-g"><span class="sync-dot" id="sdot"></span><span class="sync-lbl" id="slbl">Local</span></div>
+    <button class="btn-sm" onclick="expCur()">↑ Export</button>
+    <button class="btn-sm" onclick="editCur()">⚙ Edit</button>
+    <button class="thm" onclick="togTheme()"></button>
+  </div>
+</header>
+<div class="ql">
+  <input class="ql-in" id="qi" placeholder="e.g. walked 12 min, pain 1/10" autocomplete="off">
+  <button class="ql-btn" onclick="parseAndLog()">Log</button>
+  <div class="info-wrap"><span class="info-icon">?</span><div class="info-tip">Your <strong>best single session</strong> counts toward the gate. The training bar fills every time.<br><br>Type naturally: <em>walked 12 min pain 1/10</em> · <em>calf raises 8 reps</em> · <em>balance 40 sec</em></div></div>
+</div>
+<div class="pf" id="pf"></div>
+<div class="mg">
+  <div class="radar-row">
+    <div class="rc"><div class="rc-t" id="rc-t">Recovery</div><div class="rc-c"><svg id="rsv" viewBox="-40 -40 480 480"></svg></div><div class="rl" id="rlg"></div></div>
+    <div class="ov" id="ov"></div>
+  </div>
+  <div class="lanes" id="lanes"></div>
+</div>
+<div class="ts"><div class="ts-t" id="tlt">Journey</div><div class="tl" id="tl"></div></div>
+<div class="ls"><div class="ls-t" id="ttt">Today's Log</div><div id="ll"></div></div>
+</div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const P=['endurance','strength','stability','mobility','fascia'];
+const PL={endurance:'Endurance',strength:'Strength',stability:'Stability',mobility:'Mobility',fascia:'Fascia'};
+const PC={endurance:'--c-endurance',strength:'--c-strength',stability:'--c-stability',mobility:'--c-mobility',fascia:'--c-fascia'};
+const PU={endurance:'min',strength:'reps',stability:'sec',mobility:'1-5',fascia:'min'};
+const DN=['M','T','W','T','F','S','S'],DNN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],DFULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const PK={endurance:['endurance','walk','walking','walked','jog','jogging','jogged','run','running','ran','sprint','sprinted','jump rope','skipping','jumped rope','rollerblade','rollerbladed','skating','skated','skate','surfskate','surfskated','cardio'],strength:['strength','calf raise','calf raises','raises','raise','weighted','plyometric','explosive','reps','rep'],stability:['stability','balance','board','balance board','agility','cutting','direction','dynamic balance'],mobility:['mobility','circle','circles','rom','range of motion','stretch','stretching','stretched','ankle circles','ankle circle'],fascia:['fascia','foam roll','foam rolling','foam rolled','ball work','tissue','release','myofascial','rolled']};
+
+// ─── PLAN STORAGE ────────────────────────────────────────────────────────────
+function getIndex(){try{return JSON.parse(localStorage.getItem('rr_idx'))||[]}catch(e){return[]}}
+function setIndex(arr){localStorage.setItem('rr_idx',JSON.stringify(arr))}
+function loadPlan(id){try{return JSON.parse(localStorage.getItem('rr_p_'+id))}catch(e){return null}}
+function storePlan(plan){localStorage.setItem('rr_p_'+plan.id,JSON.stringify(plan));const idx=getIndex();if(!idx.includes(plan.id)){idx.push(plan.id);setIndex(idx)}}
+function deletePlan(id){localStorage.removeItem('rr_p_'+id);setIndex(getIndex().filter(x=>x!==id))}
+function nid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
+
+// ─── ACTIVE PLAN (dashboard state) ──────────────────────────────────────────
+let S=null; // current plan being viewed
+let vw=null;
+let editId=null; // plan being edited in setup
+
+function TW(){return S?S.tw||S.plan.length:1}
+function autoW(){if(!S||!S.sd)return 1;return Math.max(1,Math.min(TW(),Math.floor((Date.now()-new Date(S.sd).getTime())/(7*864e5))+1))}
+function W(){return vw||autoW()}
+function wPlan(w){if(!S)return null;const b=S.plan[w-1]||S.plan[S.plan.length-1];if(!b)return null;const a=S.ad?S.ad[w]:null;if(!a)return b;const r={};for(const p of P){r[p]={...b[p]};if(a[p]){r[p].d=a[p].d??b[p].d;r[p].t=a[p].t??b[p].t;r[p]._a=true}}return r}
+function wsMs(w){return S&&S.sd?new Date(S.sd).getTime()+(w-1)*7*864e5:0}
+function lfw(w){if(!S)return[];const s=wsMs(w),e=s+7*864e5;return S.logs.filter(l=>l.ts>=s&&l.ts<e)}
+function lfd(w,d){if(!S)return[];const s=wsMs(w)+d*864e5,e=s+864e5;return S.logs.filter(l=>l.ts>=s&&l.ts<e)}
+function tdi(){return S&&S.sd?Math.max(0,Math.min(6,Math.floor((Date.now()-wsMs(W()))/864e5))):0}
+function bestSession(w,p){const ls=lfw(w).filter(l=>l.p===p);return ls.length?Math.max(...ls.map(l=>l.v)):0}
+function dayVolume(w,d,p){return lfd(w,d).filter(l=>l.p===p).reduce((s,l)=>s+l.v,0)}
+function daysTrained(w,p){let c=0;for(let d=0;d<7;d++){if(lfd(w,d).some(l=>l.p===p))c++}return c}
+function totalVol(w,p){return lfw(w).filter(l=>l.p===p).reduce((s,l)=>s+l.v,0)}
+function eG(w){const pl=wPlan(w);if(!pl)return{};const ls=lfw(w),r={};for(const p of P){const best=bestSession(w,p);const t=pl[p].t;const pct=t>0?Math.min(100,Math.round(best/t*100)):0;r[p]={best,t,pct,pass:pct>=100,part:pct>=50&&pct<100}};const pls=ls.filter(l=>l.pn!=null);const avg=pls.length?pls.reduce((s,l)=>s+l.pn,0)/pls.length:-1;r.pain={avg:avg>=0?Math.round(avg*10)/10:-1,free:pls.length?Math.round(((10-avg)/10)*100):0};return r}
+function overallPct(p){const tw=TW(),aw=autoW();let sc=0;for(let w=1;w<=tw;w++){if(w>aw)continue;const pl=wPlan(w);if(!pl)continue;sc+=pl[p].t>0?Math.min(1,bestSession(w,p)/pl[p].t):1}return Math.round(sc/tw*100)}
+function overallPain(){if(!S)return 0;const all=S.logs.filter(l=>l.pn!=null);if(!all.length)return 0;const avg=all.reduce((s,l)=>s+l.pn,0)/all.length;return Math.round(((10-avg)/10)*100)}
+function gatesPassed(p){const aw=autoW();let c=0;for(let w=1;w<aw;w++){const pl=wPlan(w);if(pl&&bestSession(w,p)>=pl[p].t)c++}return{passed:c,of:Math.max(0,aw-1)}}
+function adaptNext(w){if(!S)return;const r=eG(w),nw=w+1;if(nw>TW()||!S.plan[nw-1])return;const nb=S.plan[nw-1];const ad={};let has=false;for(const p of P){if(!r[p]||r[p].pass)continue;has=true;const cp=wPlan(w);if(r[p].pct<50)ad[p]={d:cp[p].d,t:cp[p].t};else{const rat=r[p].pct/100;ad[p]={d:Math.round(cp[p].d+(nb[p].d-cp[p].d)*rat),t:Math.round(cp[p].t+(nb[p].t-cp[p].t)*rat)}}}if(has){if(!S.ad)S.ad={};S.ad[nw]=ad;storePlan(S)}}
+function runAd(){if(!S)return;const aw=autoW();if(!S.wr)S.wr={};for(let w=1;w<aw;w++){if(lfw(w).length>0&&!S.wr[w]){S.wr[w]=eG(w);adaptNext(w)}}storePlan(S)}
+
+// ─── PARSER ──────────────────────────────────────────────────────────────────
+function parseLog(txt){const lo=txt.toLowerCase().trim();const r={pillar:null,desc:txt.trim(),val:null,unit:null,pain:null};const pm=lo.match(/(?:pain|hurt(?:ing)?|sore(?:ness)?)\s*[:\-]?\s*(\d+)\s*(?:\/\s*(\d+))?/);if(pm){let pv=parseInt(pm[1]);const sc=pm[2]?parseInt(pm[2]):10;if(sc===5)pv=pv*2;r.pain=Math.min(10,Math.max(0,pv));r.desc=txt.replace(/,?\s*(?:pain|hurt(?:ing)?|sore(?:ness)?)\s*[:\-]?\s*\d+\s*(?:\/\s*\d+)?/i,'').trim()};for(const[pillar,kws]of Object.entries(PK)){const sorted=[...kws].sort((a,b)=>b.length-a.length);for(const kw of sorted){if(lo.includes(kw)){r.pillar=pillar;break}}if(r.pillar)break};if(!r.pillar)for(const p of P){if(lo.includes(p)){r.pillar=p;break}};if(!r.pillar)return r;const pl=wPlan(W());if(!pl)return r;const pp=pl[r.pillar];const pctM=lo.match(/(\d+)\s*%/);if(pctM){r.val=Math.round(pp.t*parseInt(pctM[1])/100);r.unit=pp.u};if(r.val==null){const vm=lo.match(/(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|rep(?:s)?|sec(?:ond)?s?)/);if(vm){r.val=parseFloat(vm[1]);const u=vm[2].replace(/s$/,'');r.unit=u.startsWith('min')?'min':u.startsWith('rep')?'reps':u.startsWith('sec')?'sec':u}};if(r.val==null){const qm=lo.match(/quality\s*[:\-]?\s*(\d+)/);if(qm){r.val=parseInt(qm[1]);r.unit='1-5'}};if(r.val==null){const fm=lo.match(/for\s+(\d+)\s*(rep(?:s)?|min(?:ute)?s?|sec(?:ond)?s?)/);if(fm){r.val=parseFloat(fm[1]);const u=fm[2].replace(/s$/,'');r.unit=u.startsWith('rep')?'reps':u.startsWith('min')?'min':u.startsWith('sec')?'sec':u}};if(r.val==null){const bn=lo.match(/\b(\d+(?:\.\d+)?)\b/);if(bn){r.val=parseFloat(bn[1]);r.unit=pp.u}};return r}
+function parseAndLog(){if(!S)return;const inp=document.getElementById('qi'),fb=document.getElementById('pf'),txt=inp.value.trim();if(!txt)return;const r=parseLog(txt);if(!r.pillar){fb.className='pf show err';fb.innerHTML="Couldn't detect pillar.";setTimeout(()=>fb.classList.remove('show'),4000);return};if(r.val==null){fb.className='pf show err';fb.innerHTML=`Got <strong>${PL[r.pillar]}</strong> but no number.`;setTimeout(()=>fb.classList.remove('show'),4000);return};const pl=wPlan(W())[r.pillar];const prevBest=bestSession(W(),r.pillar);S.logs.push({id:nid(),ts:Date.now(),w:W(),p:r.pillar,desc:r.desc,v:r.val,u:r.unit||pl.u,pn:r.pain});storePlan(S);const newBest=bestSession(W(),r.pillar);const gp=pl.t>0?Math.min(100,Math.round(newBest/pl.t*100)):0;const isNew=r.val>=newBest&&r.val>prevBest;const dt=daysTrained(W(),r.pillar);const ps=r.pain!=null&&r.pain>0?`<span class="ptag" style="background:var(--surface-3)">pain ${r.pain}/10</span>`:'';fb.className='pf show ok';fb.innerHTML=`<span class="ptag" style="background:var(${PC[r.pillar]});color:#fff">${PL[r.pillar]}</span><span class="ptag" style="background:var(--surface-3)">${r.val} ${r.unit||pl.u}</span>${ps} · ${dt}/7 days`+(isNew?` · <strong>New best! ${gp}%</strong>`:` · Best: ${newBest} (${gp}%)`);setTimeout(()=>fb.classList.remove('show'),4500);inp.value='';renderAll()}
+document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter')parseAndLog()});
+
+// ─── MINI RADAR (for library cards) ──────────────────────────────────────────
+function miniRadarSVG(plan){
+  const oldS=S;S=plan;
+  const axes=[...P,'pain'];const cvs=[...P.map(p=>PC[p]),'--c-pain'];
+  const n=axes.length,cx=60,cy=60,mR=42,off=-Math.PI/2;
+  const px=(i,rd)=>cx+rd*Math.cos(off+2*Math.PI*i/n);const py=(i,rd)=>cy+rd*Math.sin(off+2*Math.PI*i/n);
+  const vals=axes.map(a=>a==='pain'?overallPain()/100:overallPct(a)/100);
+  let h='';
+  for(let ring=1;ring<=3;ring++){const rd=mR*ring/3;let pts='';for(let i=0;i<n;i++)pts+=`${px(i,rd)},${py(i,rd)} `;h+=`<polygon points="${pts}" fill="none" stroke="var(--radar-grid)" stroke-width="0.4"/>`}
+  let cp='';for(let i=0;i<n;i++)cp+=`${px(i,mR*Math.max(.05,vals[i]))},${py(i,mR*Math.max(.05,vals[i]))} `;
+  h+=`<polygon points="${cp}" fill="var(--c-endurance)" fill-opacity="0.15" stroke="var(--c-endurance)" stroke-width="1.2"/>`;
+  for(let i=0;i<n;i++){const rd=mR*Math.max(.05,vals[i]);h+=`<circle cx="${px(i,rd)}" cy="${py(i,rd)}" r="2.5" fill="var(${cvs[i]})" stroke="var(--bg)" stroke-width="1"/>`}
+  S=oldS;
+  return `<svg viewBox="0 0 120 120">${h}</svg>`;
+}
+
+// ─── LIBRARY VIEW ────────────────────────────────────────────────────────────
+function renderLib(){
+  const idx=getIndex();const el=document.getElementById('cards');
+  if(!idx.length){el.innerHTML=`<div class="new-card" onclick="newPlan()"><span>+</span><p>Create your first recovery plan</p></div>`;return}
+
+  el.innerHTML=idx.map(id=>{
+    const plan=loadPlan(id);if(!plan)return'';
+    const oldS=S;S=plan;
+    const tw=TW();const aw=autoW();
+    const gTotal=P.reduce((s,p)=>s+gatesPassed(p).passed,0);
+    const gOf=P.reduce((s,p)=>s+gatesPassed(p).of,0);
+    S=oldS;
+
+    return`<div class="card" onclick="openPlan('${id}')">
+      <div class="card-actions">
+        <button class="card-btn" onclick="event.stopPropagation();editPlan('${id}')">edit</button>
+        <button class="card-btn del" onclick="event.stopPropagation();delPlan('${id}')">delete</button>
+      </div>
+      <div class="card-title">${esc(plan.title)}</div>
+      <div class="card-meta">
+        <span>Week ${aw} of ${tw}</span>
+        <span>${gTotal}/${gOf} gates passed</span>
+        <span>${plan.logs?plan.logs.length:0} logs</span>
+      </div>
+      <div class="card-radar">${miniRadarSVG(plan)}</div>
+      <div class="card-legend">${P.map(p=>`<span><span class="cld" style="background:var(${PC[p]})"></span>${PL[p]}</span>`).join('')}<span><span class="cld" style="background:var(--c-pain)"></span>Pain Free</span></div>
+    </div>`;
+  }).join('')+`<div class="new-card" onclick="newPlan()"><span>+</span><p>New recovery plan</p></div>`;
+}
+
+function delPlan(id){
+  const plan=loadPlan(id);
+  const btn=event.target;
+  if(btn.dataset.conf==='1'){deletePlan(id);renderLib()}
+  else{btn.dataset.conf='1';btn.textContent='sure?';setTimeout(()=>{btn.dataset.conf='';btn.textContent='delete'},2500)}
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function showLib(){document.getElementById('lib').style.display='block';document.getElementById('setup').style.display='none';document.getElementById('dash').style.display='none';S=null;vw=null;renderLib()}
+function showSetup(){document.getElementById('lib').style.display='none';document.getElementById('setup').style.display='block';document.getElementById('dash').style.display='none'}
+function showDash(){document.getElementById('lib').style.display='none';document.getElementById('setup').style.display='none';document.getElementById('dash').style.display='block';vw=null;renderAll()}
+
+function newPlan(){editId=null;document.getElementById('setup-title').textContent='New Recovery Plan';document.getElementById('s-title').value='';document.getElementById('s-start').value='';document.getElementById('s-nas').value=localStorage.getItem('rr_nas')||'';const c=document.getElementById('weeks');c.innerHTML='';for(let i=0;i<4;i++)c.appendChild(buildWE(i,null));showSetup()}
+
+function editPlan(id){const plan=loadPlan(id);if(!plan)return;editId=id;document.getElementById('setup-title').textContent='Edit Plan';document.getElementById('s-title').value=plan.title||'';document.getElementById('s-start').value=plan.sd||'';document.getElementById('s-nas').value=localStorage.getItem('rr_nas')||'';const c=document.getElementById('weeks');c.innerHTML='';for(let i=0;i<plan.plan.length;i++)c.appendChild(buildWE(i,plan.plan[i]));showSetup()}
+
+function editCur(){if(S)editPlan(S.id)}
+
+function openPlan(id){const plan=loadPlan(id);if(!plan)return;S=plan;showDash()}
+
+// ─── SETUP SCREEN ────────────────────────────────────────────────────────────
+function buildWE(idx,data){
+  const div=document.createElement('div');div.className='we';div.dataset.w=idx;
+  div.innerHTML=`<div class="we-hd"><h3>Week ${idx+1}</h3><button onclick="rmWeek(this)">remove</button></div><div class="ph"><span>Pillar</span><span>Exercise</span><span>Gate</span><span>Daily</span><span>Target</span></div>`+P.map(p=>{const d=data?data[p]:null;return`<div class="pr"><div class="pn"><span class="cd" style="background:var(${PC[p]})"></span>${PL[p]}</div><input data-p="${p}" data-f="ex" placeholder="Exercise" value="${d?esc(d.ex):''}"><input data-p="${p}" data-f="gate" placeholder="Gate test" value="${d?esc(d.gate):''}"><input data-p="${p}" data-f="d" type="number" placeholder="Daily" min="0" value="${d?d.d:''}"><input data-p="${p}" data-f="t" type="number" placeholder="Gate" min="0" value="${d?d.t:''}"></div>`}).join('');
+  return div;
+}
+function addWeek(){const c=document.getElementById('weeks');c.appendChild(buildWE(c.children.length,null));reindexWeeks()}
+function rmWeek(btn){const c=document.getElementById('weeks');if(c.children.length<=1)return;btn.closest('.we').remove();reindexWeeks()}
+function reindexWeeks(){[...document.getElementById('weeks').children].forEach((el,i)=>{el.dataset.w=i;el.querySelector('h3').textContent=`Week ${i+1}`})}
+
+function readPlan(){const c=document.getElementById('weeks');const plan=[];[...c.children].forEach(we=>{const wk={};P.forEach(p=>{wk[p]={ex:we.querySelector(`[data-p="${p}"][data-f="ex"]`)?.value||'',gate:we.querySelector(`[data-p="${p}"][data-f="gate"]`)?.value||'',u:PU[p],d:parseInt(we.querySelector(`[data-p="${p}"][data-f="d"]`)?.value)||0,t:parseInt(we.querySelector(`[data-p="${p}"][data-f="t"]`)?.value)||0}});plan.push(wk)});return plan}
+
+function savePlan(){
+  const title=document.getElementById('s-title').value.trim();if(!title){alert('Enter a title.');return}
+  const plan=readPlan();if(!plan.length){alert('Add at least one week.');return}
+  const sd=document.getElementById('s-start').value||null;
+  const nas=document.getElementById('s-nas').value.trim();
+  if(nas){let u=nas;if(!/^https?:\/\//i.test(u))u='http://'+u;localStorage.setItem('rr_nas',u)}
+
+  let obj;
+  if(editId){obj=loadPlan(editId)||{};obj.title=title;obj.plan=plan;obj.tw=plan.length;if(sd)obj.sd=sd}
+  else{obj={id:nid(),title,sd:sd||defaultMonday(),tw:plan.length,plan,logs:[],wr:{},ad:{}}}
+  if(!obj.sd)obj.sd=defaultMonday();
+  if(!obj.id)obj.id=nid();
+  if(!obj.logs)obj.logs=[];
+  if(!obj.wr)obj.wr={};
+  if(!obj.ad)obj.ad={};
+  storePlan(obj);
+  S=obj;
+  showDash();
+}
+
+function defaultMonday(){const n=new Date(),d=n.getDay(),df=d===0?6:d-1;return new Date(n.getTime()-df*864e5).toISOString().split('T')[0]}
+
+function impPlan(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.plan){if(!d.id)d.id=nid();storePlan(d);renderLib();}else alert('Invalid.')}catch(x){alert('Invalid JSON.')}};r.readAsText(f);e.target.value=''}
+function expCur(){if(!S)return;const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(S.title||'recovery')+'.json';a.click()}
+
+// ─── RENDER DASHBOARD (same logic as before) ─────────────────────────────────
+function renderRadar(){const svg=document.getElementById('rsv');const axes=[...P,'pain'];const labs={...PL,pain:'Pain Free'};const cvs=[...P.map(p=>PC[p]),'--c-pain'];const n=axes.length,cx=200,cy=200,mR=145,off=-Math.PI/2;const px=(i,rd)=>cx+rd*Math.cos(off+2*Math.PI*i/n);const py=(i,rd)=>cy+rd*Math.sin(off+2*Math.PI*i/n);const vals=axes.map(a=>a==='pain'?overallPain()/100:overallPct(a)/100);let h='';for(let ring=1;ring<=4;ring++){const rd=mR*ring/4;let pts='';for(let i=0;i<n;i++)pts+=`${px(i,rd)},${py(i,rd)} `;h+=`<polygon points="${pts}" fill="none" stroke="var(--radar-grid)" stroke-width="0.7"/>`};for(let i=0;i<n;i++)h+=`<line x1="${cx}" y1="${cy}" x2="${px(i,mR)}" y2="${py(i,mR)}" stroke="var(--radar-grid)" stroke-width="0.7"/>`;let tp='';for(let i=0;i<n;i++)tp+=`${px(i,mR)},${py(i,mR)} `;h+=`<polygon points="${tp}" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.3"/>`;const wf=autoW()/TW();let wp='';for(let i=0;i<n;i++)wp+=`${px(i,mR*wf)},${py(i,mR*wf)} `;h+=`<polygon points="${wp}" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3" opacity="0.45"/>`;h+=`<text x="${px(0,mR*wf)+10}" y="${py(0,mR*wf)-6}" font-family="Jost" font-size="11" fill="var(--text-muted)" opacity="0.6">Wk ${autoW()} expected</text>`;let cp='';for(let i=0;i<n;i++)cp+=`${px(i,mR*Math.max(.03,vals[i]))},${py(i,mR*Math.max(.03,vals[i]))} `;h+=`<polygon points="${cp}" fill="var(--c-endurance)" fill-opacity="0.14" stroke="var(--c-endurance)" stroke-width="2"/>`;for(let i=0;i<n;i++){const rd=mR*Math.max(.03,vals[i]);h+=`<circle cx="${px(i,rd)}" cy="${py(i,rd)}" r="5" fill="var(${cvs[i]})" stroke="var(--bg)" stroke-width="2"/>`;const lR=mR+32,lx=px(i,lR),ly=py(i,lR);const anc=lx<cx-5?'end':lx>cx+5?'start':'middle';h+=`<text x="${lx}" y="${ly-6}" text-anchor="${anc}" font-family="Jost" font-size="14" font-weight="300" fill="var(--text-secondary)">${labs[axes[i]]}</text>`;h+=`<text x="${lx}" y="${ly+10}" text-anchor="${anc}" font-family="Jost" font-size="13" font-weight="400" fill="var(--text-muted)">${Math.round(vals[i]*100)}%</text>`};svg.innerHTML=h;document.getElementById('rlg').innerHTML=axes.map((a,i)=>`<div class="rl-i"><span class="rl-d" style="background:var(${cvs[i]})"></span>${labs[a]}<span class="rl-v">${Math.round(vals[i]*100)}%</span></div>`).join('')}
+
+function renderOverall(){document.getElementById('ov').innerHTML=`<div class="ov-t">Overall ${TW()}-Week Progress</div>`+P.map(p=>{const pct=overallPct(p);const gp=gatesPassed(p);return`<div class="ov-row"><span class="ov-dot" style="background:var(${PC[p]})"></span><span class="ov-name">${PL[p]}</span><div class="ov-bar"><div class="ov-fill" style="width:${pct}%;background:var(${PC[p]});opacity:.65"></div></div><span class="ov-pct">${pct}%</span><span class="ov-wk">${gp.passed}/${gp.of}</span></div>`}).join('')+`<div class="ov-row"><span class="ov-dot" style="background:var(--c-pain)"></span><span class="ov-name">Pain Free</span><div class="ov-bar"><div class="ov-fill" style="width:${overallPain()}%;background:var(--c-pain);opacity:.65"></div></div><span class="ov-pct">${overallPain()}%</span><span class="ov-wk">avg</span></div>`}
+
+function renderLanes(){const el=document.getElementById('lanes'),w=W(),pl=wPlan(w);if(!pl){el.innerHTML='';return}const r=eG(w),ti=tdi();el.innerHTML=P.map(p=>{const pp=pl[p],gr=r[p]||{best:0,t:0,pct:0},col=`var(${PC[p]})`,best=gr.best,gatePct=gr.pct;const dt=daysTrained(w,p),vol=totalVol(w,p),sess=lfw(w).filter(l=>l.p===p).length;let segs='';for(let d=0;d<7;d++){const dv=dayVolume(w,d,p);const fp=pp.d>0?Math.min(100,Math.round(dv/pp.d*100)):0;segs+=`<div class="day-seg${d===ti?' today':''}${dv>0?' trained':''}"><div class="day-fill" style="height:${fp}%;background:${col};opacity:${fp>0?.55:0}"></div><span class="day-lbl">${DN[d]}</span></div>`};const gI=gatePct>=100?'✓':gatePct>=50?'◐':'○';const gC=gatePct>=100?'gpp':gatePct>=50?'gpi':'gpb';const rem=best<pp.t?`${pp.t-best} ${pp.u} to go`:'Gate cleared!';const wl=lfw(w).filter(l=>l.p===p).sort((a,b)=>b.ts-a.ts);let hist='';if(wl.length){hist='<div class="pl-h">'+wl.map(l=>{const t=new Date(l.ts);const dd=DNN[t.getDay()===0?6:t.getDay()-1];const hh=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');const ps=l.pn>0?`<span class="hp">pain ${l.pn}/10</span>`:'';const iB=l.v===best&&l.v>0;return`<div class="hr${iB?' best-row':''}"><span class="ht">${dd} ${hh}</span><span class="hd">${esc(l.desc)}</span><span class="hv">${l.v} ${l.u}${iB?' ★':''}</span>${ps}</div>`}).join('')+'</div>'};return`<div class="pl" onclick="focusLog('${p}')"><div class="pl-top"><div class="pl-n"><span class="cd" style="background:${col}"></span>${PL[p]}</div></div><div class="pl-ex">${esc(pp.ex)}${pp._a?'<span class="atag">adapted</span>':''}</div><div class="train-label">${dt}/7 days · ${sess} sessions · ${vol} ${pp.u} total · daily aim ${pp.d} ${pp.u}</div><div class="train-bar">${segs}</div><div class="gate-row"><div class="gate-icon">${gI}</div><div class="gate-info"><div class="gate-desc">Gate: <strong>${esc(pp.gate)}</strong></div><div class="gate-progress"><div class="gate-mini-bar"><div class="gate-mini-fill" style="width:${gatePct}%;background:${col};opacity:.7"></div></div><span class="gate-pct ${gC}">${gatePct}%</span></div><div class="gate-best">Best: <strong>${best>0?best+' '+pp.u:'—'}</strong> of ${pp.t} ${pp.u} · ${rem}</div></div></div>${hist}</div>`}).join('')}
+function focusLog(p){const inp=document.getElementById('qi');inp.value=PL[p].toLowerCase()+' ';inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length)}
+
+function renderTL(){const el=document.getElementById('tl'),w=W();el.innerHTML=Array.from({length:TW()},(_,i)=>{const wn=i+1,wr=S.wr?S.wr[wn]:null;let c='';if(wn===w)c='cur';else if(wn<w&&wr)c=P.every(p=>wr[p]?.pass)?'done':(P.some(p=>wr[p]?.pass)?'part':'');const ad=S.ad&&S.ad[wn]?' ⟳':'';let dots='';if(wr)dots=P.map(p=>`<span class="d" style="background:${wr[p]?.pass?`var(${PC[p]})`:wr[p]?.part?'var(--c-mobility)':'var(--border)'}"></span>`).join('');return`<div class="tw ${c}" onclick="vw=${wn};renderAll()"><div class="tw-n">${wn}</div><div class="tw-ds">${dots}</div><span class="tw-l">${wn}${ad}</span></div>`}).join('')}
+
+function renderLogs(){const w=W(),di=tdi();const isV=vw&&vw!==autoW();document.getElementById('ttt').textContent=isV?`Week ${w} Logs`:`${DFULL[di]}'s Log`;const logs=isV?lfw(w).sort((a,b)=>b.ts-a.ts):lfd(w,di).sort((a,b)=>b.ts-a.ts);const el=document.getElementById('ll');if(!logs.length){el.innerHTML=`<div class="nl">No entries yet today.</div>`;return};el.innerHTML=logs.map(l=>{const t=new Date(l.ts);const hh=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');const ds=isV?(t.getDate()+'/'+(t.getMonth()+1)+' '):'';const ps=l.pn>0?`<span class="lpn">pain ${l.pn}/10</span>`:'';return`<div class="le"><span class="lt">${ds}${hh}</span><span class="lp" style="color:var(${PC[l.p]})">${PL[l.p]||l.p}</span><span class="ld">${esc(l.desc)}</span><span class="lv">${l.v} ${l.u}</span>${ps}<button class="lx" onclick="delLog('${l.id}');event.stopPropagation()">✕</button></div>`}).join('')}
+function delLog(id){if(!S)return;S.logs=S.logs.filter(l=>l.id!==id);storePlan(S);renderAll()}
+
+function renderAll(){if(!S)return;const w=W();document.getElementById('d-title').textContent=S.title;document.getElementById('d-sub').textContent=`${TW()}-week recovery`;document.getElementById('rc-t').textContent=`${TW()}-Week Recovery`;document.getElementById('tlt').textContent=`${TW()}-Week Journey`;document.getElementById('wdd').textContent=`Week ${w}`;document.getElementById('wp').disabled=w<=1;document.getElementById('wn').disabled=w>=TW();if(S.sd){const ws=new Date(wsMs(w)),we=new Date(ws.getTime()+6*864e5);const fmt=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});document.getElementById('wdt').textContent=fmt(ws)+' — '+fmt(we)}else document.getElementById('wdt').textContent='';runAd();renderRadar();renderOverall();renderLanes();renderTL();renderLogs()}
+
+function navW(d){const w=W()+d;if(w<1||w>TW())return;vw=w;renderAll()}
+function togTheme(){const d=document.documentElement.getAttribute('data-theme')==='dark';document.documentElement.setAttribute('data-theme',d?'light':'dark');localStorage.setItem('rr_t',d?'light':'dark');if(S)renderAll();else renderLib()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')showLib()});
+
+(function init(){
+  document.documentElement.setAttribute('data-theme',localStorage.getItem('rr_t')||'dark');
+  showLib();
+})();
+</script>
+</body>
+</html>
